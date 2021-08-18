@@ -1,0 +1,20 @@
+# config_multi_info.yaml
+# template configuration file
+
+
+path_ident: 'alt_names'
+header: ' * {worse}: '
+
+fields:
+    - 'regular'
+    - 'distant'
+    - 'area'
+
+no_field: 'information'
+
+# semantic feature types
+metric:
+    type: 'float'
+
+    larger: 'the {better} had a higher {feature} metric'
+    smaller: 'the {better} had a smaller {feature} metric, which rated it higher? I guess??? (probably need to modify this)'
