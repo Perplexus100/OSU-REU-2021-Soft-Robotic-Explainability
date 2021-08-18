@@ -5,10 +5,6 @@
 path_ident: 'alt_names'
 header: ' * {worse}: '
 
-fields:
-    - 'regular'
-    - 'distant'
-    - 'area'
 
 no_field: 'information'
 
