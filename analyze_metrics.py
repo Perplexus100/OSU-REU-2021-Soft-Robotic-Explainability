@@ -13,6 +13,7 @@ import math
 from shapely.geometry import Polygon
 
 import sys
+import csv
 
 
 """
@@ -56,16 +57,17 @@ def angle(x1, y1, x2, y2):
         #returns angle in DEGREES
         return math.degrees((math.acos(numerator / denominator)))
     
-    
+        
 def add_to_file(file_name, data):
     """
-    Writes contact point array to a CSV file. Returns nothing.
+    Writes contact point array to an existing CSV file. Returns nothing.
     """
+    
+    
     with open('/Users/lucymore/OSU_REU/CSV_files/' + file_name + '.csv', 'a') as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter = ' ')
 
-        # write multiple rows
-        writer.writerows(data)
+        writer.writerow([str(data)])
     
     
 """
@@ -83,6 +85,7 @@ def is_regular(points):
     
     #calculates ideal angle in DEGREES
     norm_theta = ((n - 2) * 180) / n
+
     
     #creates list of internal angles
     angle_list = []
@@ -95,25 +98,30 @@ def is_regular(points):
         
         x1, y1 = p1[0] - ref[0], p1[1] - ref[1]
         x2, y2 = p2[0] - ref[0], p2[1] - ref[1]
-        #print('Points', p1, ref, p2)
-        #print('Angle', angle(x1, y1, x2, y2))
         
         angle_list.append( angle(x1, y1, x2, y2) )
     
-    #divides list of internal angles by ideal angle
-    ratio_list = []
+        
+    #sum of the differences between internal angles when polygon degenerates to a line
+    theta_max = ((n - 2)*(180 - norm_theta)) + (2 * norm_theta)
+    
+    #sums together the absolute differences between internal angle and ideal angle
+    difference_sum = 0
 
     for angle_ in angle_list:
-        ratio_list.append(angle_ / norm_theta)
+        difference_sum += abs(angle_ - norm_theta)
     
-    #averages list of ratios to produce final quality metric
-    metric = np.mean(ratio_list)
+    #normalizes metric to between 0 and 1, 1 being the best value
+    metric = 1 - (1 / theta_max) * difference_sum
     
     return round(metric, 4)
 
 
 def is_distant(points, CoM):
     """
+    The distance metric is defined as the distance between the centroid of 
+    the grasp polygon and the object's center of mass.
+    
     Calculates normalized distance metric given list of contact points and 
     object's center of mass. Metric is normalized to a value between 0 and 1, 
     1 being no difference at all (ideal grasp). Output is float rounded to 4 
@@ -175,12 +183,20 @@ def main():
         (2.922, 1.21)
     ]
     
+    triangle = [
+        (1, 1),
+        (1, 0),
+        (2, 0)
+    ]
     
     file_name = sys.argv[1]
    
-    
     #Extracts point data from csv file written by click_detection_2.py
+    #input format is [point, point, point, CoM, gripper center]
     points = np.loadtxt('/Users/lucymore/OSU_REU/CSV_files/' + file_name + '.csv', delimiter = ',')
+    
+    #contact polygon
+    contacts = points[:3]
     
     #center of object
     CoM = points[3]
@@ -189,13 +205,20 @@ def main():
     CoG = points[4]
     
     print("####")
-    print("File Name:", file_name, "\n")
-    print('Regularity Metric (0-1):', is_regular(points))
+    print("\nFile Name:", file_name, "\n")
+    print('Regularity Metric (0-1):', is_regular(contacts))
     
-    print('Distance Metric (0-1):', is_distant(points, CoM))
+    print('Distance Metric (0-1):', is_distant(contacts, CoM))
     
-    print('Area:', is_area(points))
-    print("####")
+    print('Area:', is_area(contacts))
+    print("\n####")
 
+
+    add_to_file('metric_data', str(file_name))
+    add_to_file('metric_data', is_regular(contacts))
+    add_to_file('metric_data', is_distant(contacts, CoM))
+    add_to_file('metric_data', is_area(contacts))
+    
+    
 if __name__ == '__main__':
     main() 
