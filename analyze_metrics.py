@@ -81,7 +81,7 @@ def add_row_to_csv(file_name, list_of_row):
 
         for i, elem in enumerate(list_of_row):
             if i != 0:
-                str += ','
+                row_str += ','
 
             row_str += str(elem)
 
