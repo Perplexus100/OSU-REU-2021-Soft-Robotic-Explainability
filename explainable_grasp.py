@@ -173,7 +173,7 @@ def main():
 
     ###################### Explanation template generation
     explan_data = {}
-    explan_data['feature_labels'] = ['regular', 'distant', 'area'] # LUCY GIVE THESE BETTER NAMES PLEASE!
+    explan_data['feature_labels'] = ['Regularity of the grasp polygon', "Daistance between the center of object's mass and centroid of the grasp polygon", 'Area of the grasp polygon'] 
     explan_data['feature_idx'] = np.arange(query_metric.shape[0], dtype=np.int)
     explan_data['feature_types'] = ['metric']*3
     explan_data['alt_names'] = filenames + [args.q]
