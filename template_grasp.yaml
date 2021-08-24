@@ -12,5 +12,5 @@ no_field: 'information'
 metric:
     type: 'float'
 
-    larger: 'the {better} had a higher {feature} metric'
-    smaller: 'the {better} had a smaller {feature} metric, which rated it higher? I guess??? (probably need to modify this)'
+    larger: 'the {better} had a higher {feature} metric than the alternative, which is predicted to successfuly grasp the object compared to {worse}'
+    smaller: 'the {better} had a smaller {feature} metric than the alternative, this implies the grasp is likely to be unsuccessful compared to {better}'

@@ -18,13 +18,13 @@ import pdb
 # @param contacts the input contact points
 # @param CoM- the center of mass of the object
 #
-# @return - metrics (3,) ndarray
+# @return - metrics (2,) ndarray
 def compute_metrics(contacts, CoM):
     regular = am.is_regular(contacts)
     distant = am.is_distant(contacts, CoM)
-    area =    am.is_area(contacts)
+    #area =    am.is_area(contacts)
 
-    metrics = np.array([regular, distant, area])
+    metrics = np.array([regular, distant])
     return metrics
 
 ## This function reads as input a single csv and outputs the metrics for that csv
@@ -32,6 +32,7 @@ def compute_metrics(contacts, CoM):
 #
 # @return - metrics, jpg_filename
 def read_single_csv(filename):
+    #print(filename)
     jpg_filename = glob.glob(filename[:-4]+'.jp*g')
     if len(jpg_filename) > 0:
         jpg_filename = jpg_filename[0]
@@ -55,7 +56,7 @@ def read_single_csv(filename):
 # the metrics, filenames, and image filenames
 # @param folder - the path to the folder
 #
-# @return metrics (n x 3 ndarray), filename (list n), jpg_files (list n)
+# @return metrics (n x k ndarray), filename (list n), jpg_files (list n)
 def read_shape_points(folder):
     filenames = glob.glob(folder+'*.csv')
 
@@ -144,13 +145,21 @@ def gen_explanation_with_given_decision( feat_idx, path_features, idx_path_b, id
         return None, None
 
 
+def exclude_function(shap, query_shap, data):
+    q_succ = np.sum(query_shap) > data['thresh']
+    o_succ = np.sum(shap) > data['thresh']
+
+    return q_succ == o_succ
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='explainable grasp metrics')
-    parser.add_argument('-t', type=str, default='data/', help='the folder of training csv and images')
-    parser.add_argument('-q', type=str, default='test/5_2.csv', help='the query csv of shape points')
+    parser.add_argument('-t', type=str, default='train_files/', help='the folder of training csv and images')
+    parser.add_argument('-q', type=str, default='test_files/35_2.csv', help='the query csv of shape points')
     parser.add_argument('--template', type=str, default='template_grasp.yaml', help='the yaml filename to load templates for generating the text explanation.')
     parser.add_argument('--num_alts', type=int, default=1, help='num alternatives (max number of features)')
+    parser.add_argument('--thresh', type=float, default=1.45699, help='threshold to determine grasp')
     args = parser.parse_args()
 
     metrics, filenames, jpg_files = read_shape_points(args.t)
@@ -160,6 +169,12 @@ def main():
     np.set_printoptions(suppress=True)
     print(query_metric)
 
+    grasp_prediction = np.sum(query_metric) >= args.thresh
+    if grasp_prediction:
+        print('Query grasp is predicted to be successful')
+    else:
+        print('Query grasp is predicted to be unsuccessful')
+
     concat_metrics = np.append(metrics, query_metric[np.newaxis,:], axis=0)
 
     #### Perform the explainability selection
@@ -167,15 +182,18 @@ def main():
                                 concat_metrics.shape[0]-1, \
                                 concat_metrics, \
                                 args.num_alts+1, \
-                                'similar_except') # ['random_less', 'worse_shap', 'similar_except']
+                                'similar_except', \
+                                isMax=grasp_prediction,\
+                                exclude_func=exclude_function,\
+                                data={'thresh': args.thresh}) # ['random_less', 'worse_shap', 'similar_except']
 
 
 
     ###################### Explanation template generation
     explan_data = {}
-    explan_data['feature_labels'] = ['Regularity of the grasp polygon', "Daistance between the center of object's mass and centroid of the grasp polygon", 'Area of the grasp polygon'] 
+    explan_data['feature_labels'] = ['regularity of the grasp polygon', "distance between the center of object's mass and centroid of the grasp polygon", 'Area of the grasp polygon']
     explan_data['feature_idx'] = np.arange(query_metric.shape[0], dtype=np.int)
-    explan_data['feature_types'] = ['metric']*3
+    explan_data['feature_types'] = ['metric']*2
     explan_data['alt_names'] = filenames + [args.q]
     with open(args.template, 'rb') as f:
         templates_yaml = yaml.load(f.read(), Loader=yaml.Loader)
@@ -192,6 +210,13 @@ def main():
     explanations = []
     show_at_least_one_image = False
 
+    if len(query_jpg) > 0:
+        plt.figure()
+        img = mpimg.imread(query_jpg)
+        plt.imshow(img)
+        plt.title('Query grasp')
+        show_at_least_one_image = True
+
     for i, feat_idx in enumerate(feat_idxs):
         alt_idx = alt_idxs[i+1]
         _, explanation = gen_explanation_with_given_decision(\
@@ -204,6 +229,11 @@ def main():
                                     alt_idxs[0], \
                                     alt_idx)
 
+        alt_predicted_to_be_successful = np.sum(concat_metrics[alt_idx]) >= args.thresh
+        if alt_predicted_to_be_successful:
+            print('\nThe alternative is predicted to be successful')
+        else:
+            print('\nThe alternative is predicted to be unsuccessful')
         explanations.append(explanation)
 
         # try to read and show alternative image
@@ -211,6 +241,7 @@ def main():
             plt.figure()
             img = mpimg.imread(jpg_files[alt_idx])
             plt.imshow(img)
+            plt.title('Alternative grasp #'+str(i+1))
             show_at_least_one_image = True
 
     if show_at_least_one_image:
