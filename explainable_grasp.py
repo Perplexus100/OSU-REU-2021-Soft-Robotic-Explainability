@@ -102,8 +102,12 @@ def gen_explanation_with_given_decision( feat_idx, path_features, idx_path_b, id
 
     ################# Define the keys for each of the templates
     template_key = {}
-    template_key['better'] = data[templates['path_ident']][path_num_b]
-    template_key['worse'] = data[templates['path_ident']][path_num_w]
+    
+    #indexes file name str to isolate grasp number (assumes ...##_2.csv naming convention)
+    template_key['better'] = data[templates['path_ident']][path_num_b][-8:-6]
+    
+    template_key['worse'] = data[templates['path_ident']][path_num_w][-8:-6]
+   
     template_key['feature'] = data['feature_labels'][feat_idx]
 
     # #
@@ -168,11 +172,13 @@ def main():
     print('query_metric')
     np.set_printoptions(suppress=True)
     print(query_metric)
-
+    
     grasp_prediction = np.sum(query_metric) >= args.thresh
     if grasp_prediction:
+        query_label = "Successful Grasp"
         print('Query grasp is predicted to be successful')
     else:
+        query_label = "Unsuccessful Grasp"
         print('Query grasp is predicted to be unsuccessful')
 
     concat_metrics = np.append(metrics, query_metric[np.newaxis,:], axis=0)
@@ -191,8 +197,10 @@ def main():
 
     ###################### Explanation template generation
     explan_data = {}
-    explan_data['feature_labels'] = ['regularity of the grasp polygon', "distance between the center of object's mass and centroid of the grasp polygon", 'Area of the grasp polygon']
-    explan_data['feature_idx'] = np.arange(query_metric.shape[0], dtype=np.int)
+    
+    # Full labels are:'regularity of the grasp polygon', "distance between the center of object's mass and centroid of the grasp polygon", 'Area of the grasp polygon'
+    explan_data['feature_labels'] = ['regularity', 'distance', 'area']
+    explan_data['feature_idx'] = np.arange(query_metric.shape[0], dtype= int)
     explan_data['feature_types'] = ['metric']*2
     explan_data['alt_names'] = filenames + [args.q]
     with open(args.template, 'rb') as f:
@@ -209,12 +217,33 @@ def main():
 
     explanations = []
     show_at_least_one_image = False
+    
+    #declares fig to plot both images in a single window
+    fig = plt.figure(figsize = (5, 7))
+    
+    #declares rows and columns for subplot function
+    rows = 2
+    columns = 1
 
     if len(query_jpg) > 0:
-        plt.figure()
         img = mpimg.imread(query_jpg)
+        
+        fig.add_subplot(rows, columns, 1)
+        
         plt.imshow(img)
-        plt.title('Query grasp')
+       
+        
+        
+        plt.title(query_label)
+        
+        #axis labels
+        #assumes naming convention ...##_2.jpeg
+        grasp_number = str(query_jpg[-9:-7])
+        
+        plt.ylabel('Query Grasp: Grasp #' + grasp_number)
+        plt.xticks([])
+        plt.yticks([])
+        
         show_at_least_one_image = True
 
     for i, feat_idx in enumerate(feat_idxs):
@@ -238,18 +267,28 @@ def main():
 
         # try to read and show alternative image
         if len(jpg_files[alt_idx]) > 0:
-            plt.figure()
+           
             img = mpimg.imread(jpg_files[alt_idx])
+            
+            #adds subplot in corresponding position
+            fig.add_subplot(rows+i, columns, 2+i)
+            
             plt.imshow(img)
-            plt.title('Alternative grasp #'+str(i+1))
+                
+            
+            plt.title("UR DUM")
+            
+            #axis labels
+            #assumes naming convention ...##_2.jpeg   
+            alt_grasp_number = str(jpg_files[alt_idx][-9:-7])
+            plt.ylabel('Alternative Grasp Option '+str(i+1)+': Grasp #' + alt_grasp_number)
+            plt.xticks([])
+            plt.yticks([])
+            
             show_at_least_one_image = True
 
     if show_at_least_one_image:
         plt.show()
-
-
-
-
 
 
 if __name__ == '__main__':
